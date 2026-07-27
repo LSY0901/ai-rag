@@ -1,0 +1,107 @@
+"""MilvusClient 封装：Collection、双索引、CRUD、hybrid_search。
+
+用 pymilvus 3.x 的 MilvusClient 新 API（旧的 connections/Collection/utility 已 deprecated）。
+"""
+from pymilvus import (
+    AnnSearchRequest,
+    DataType,
+    MilvusClient,
+    RRFRanker,
+)
+
+from rag.models import Chunk, SearchHit
+
+
+class MilvusStore:
+    def __init__(self, uri: str, collection: str, dense_dim: int):
+        self.uri = uri
+        self.collection = collection
+        self.dense_dim = dense_dim
+        self.client = MilvusClient(uri=uri)
+
+    def ensure_collection(self) -> None:
+        """幂等建表 + 双索引 + load。"""
+        if self.client.has_collection(self.collection):
+            self.client.load_collection(self.collection)
+            return
+
+        schema = MilvusClient.create_schema(auto_id=True, enable_dynamic_field=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("content", DataType.VARCHAR, max_length=8192)
+        schema.add_field("source", DataType.VARCHAR, max_length=512)
+        schema.add_field("dense", DataType.FLOAT_VECTOR, dim=self.dense_dim)
+        schema.add_field("sparse", DataType.SPARSE_FLOAT_VECTOR)
+
+        index_params = self.client.prepare_index_params()
+        index_params.add_index(
+            field_name="dense", index_type="AUTOINDEX", metric_type="COSINE"
+        )
+        index_params.add_index(
+            field_name="sparse",
+            index_type="SPARSE_INVERTED_INDEX",
+            metric_type="IP",
+        )
+
+        self.client.create_collection(
+            collection_name=self.collection, schema=schema, index_params=index_params
+        )
+        self.client.load_collection(self.collection)
+
+    def insert(self, chunks: list[Chunk]) -> None:
+        if not chunks:
+            return
+        rows = [
+            {
+                "content": c.content,
+                "source": c.source,
+                "dense": c.dense,
+                "sparse": c.sparse,
+            }
+            for c in chunks
+        ]
+        self.client.insert(collection_name=self.collection, data=rows)
+        self.client.flush(self.collection)
+
+    def delete_by_source(self, source: str) -> None:
+        self.client.delete(
+            collection_name=self.collection, filter=f'source == "{source}"'
+        )
+
+    def hybrid_search(
+        self, dense: list[float], sparse: dict[str, float], limit: int
+    ) -> list[SearchHit]:
+        """并行 dense + sparse 两路 anns_search，RRF 融合。"""
+        dense_req = AnnSearchRequest(
+            data=[dense],
+            anns_field="dense",
+            param={"metric_type": "COSINE"},
+            limit=limit,
+        )
+        sparse_req = AnnSearchRequest(
+            data=[sparse],
+            anns_field="sparse",
+            param={"metric_type": "IP"},
+            limit=limit,
+        )
+        results = self.client.hybrid_search(
+            collection_name=self.collection,
+            reqs=[dense_req, sparse_req],
+            ranker=RRFRanker(k=60),
+            limit=limit,
+            output_fields=["content", "source"],
+        )
+        hits: list[SearchHit] = []
+        for r in results[0]:
+            entity = r.get("entity", {})
+            hits.append(
+                SearchHit(
+                    content=entity.get("content", ""),
+                    source=entity.get("source", ""),
+                    score=float(r.get("distance", 0.0)),
+                )
+            )
+        return hits
+
+    def count(self) -> int:
+        stats = self.client.get_collection_stats(self.collection)
+        return int(stats.get("row_count", 0))

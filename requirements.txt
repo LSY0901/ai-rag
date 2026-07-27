@@ -1,0 +1,13 @@
+pymilvus==3.0.0
+FlagEmbedding==1.4.0
+transformers==4.49.0
+docling==2.107.0
+docling-core==2.84.0
+torch==2.12.1
+numpy==2.4.6
+pydantic==2.13.4
+pydantic-settings==2.14.2
+fastapi
+uvicorn
+python-multipart
+pytest

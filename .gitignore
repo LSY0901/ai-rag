@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 虚拟环境（本地）
+venv/
+
+# 运行时数据
+data/uploads/*
+!data/uploads/.gitkeep
+
+# 环境
+.env
+
+# IDE
+.idea/
+
+# macOS
+.DS_Store
