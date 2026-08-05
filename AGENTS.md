@@ -37,6 +37,9 @@ Run everything via the local venv interpreter:
 ./venv/bin/python scripts/ingest_cli.py data/uploads/sample.pdf
 ./venv/bin/python scripts/search_cli.py "查询内容" 3
 ./venv/bin/uvicorn api.app:app --port 8000
+./venv/bin/uvicorn api.embedding_app:app --port 8082
+./venv/bin/uvicorn api.rerank_app:app --port 8083
+./venv/bin/python scripts/start_services.py --all
 ./venv/bin/pytest
 ```
 

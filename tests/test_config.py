@@ -9,7 +9,7 @@ def test_default_values():
     assert s.dense_dim == 1024
     assert s.embedding_model_path.endswith("bge-m3")
     assert s.reranker_model_path.endswith("bge-reranker-v2-m3")
-    assert s.chunk_max_tokens == 1024
+    assert s.chunk_max_tokens == 450
     assert s.upload_dir == "data/uploads"
 
 

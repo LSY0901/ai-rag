@@ -3,9 +3,10 @@ from unittest.mock import MagicMock, patch
 from rag.chunking.parser import DoclingParser
 
 
+@patch("rag.chunking.parser.HuggingFaceTokenizer")
 @patch("rag.chunking.parser.HybridChunker")
 @patch("rag.chunking.parser.DocumentConverter")
-def test_parse_and_chunk(mock_conv_cls, mock_chunker_cls):
+def test_parse_and_chunk(mock_conv_cls, mock_chunker_cls, mock_hf_tok_cls):
     converter = MagicMock()
     mock_conv_cls.return_value = converter
     fake_doc = MagicMock(name="DoclingDocument")
@@ -27,9 +28,10 @@ def test_parse_and_chunk(mock_conv_cls, mock_chunker_cls):
     assert chunks[0].dense is None
 
 
+@patch("rag.chunking.parser.HuggingFaceTokenizer")
 @patch("rag.chunking.parser.HybridChunker")
 @patch("rag.chunking.parser.DocumentConverter")
-def test_parse_error_wrapped(mock_conv_cls, mock_chunker_cls):
+def test_parse_error_wrapped(mock_conv_cls, mock_chunker_cls, mock_hf_tok_cls):
     from rag.exceptions import ParseError
 
     converter = MagicMock()
@@ -42,3 +44,4 @@ def test_parse_error_wrapped(mock_conv_cls, mock_chunker_cls):
         assert False, "应抛 ParseError"
     except ParseError:
         pass
+

@@ -4,10 +4,28 @@ import os
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
 from api.dependencies import get_search_service, get_store
+from api.embedding_app import create_embeddings
+from api.rerank_app import rerank
 from rag.exceptions import EmbedError, ParseError, StoreError
-from rag.models import HealthResponse, IngestResponse, SearchRequest, SearchResponse
+from rag.models import (
+    EmbeddingResponse,
+    HealthResponse,
+    IngestResponse,
+    RerankResponse,
+    SearchRequest,
+    SearchResponse,
+)
 
 app = FastAPI(title="RAG Retrieval Service")
+
+
+# 注册单独的 embedding 与 rerank 路由，使主应用 8000 端口同样支持直接调用
+app.post("/v1/embeddings", response_model=EmbeddingResponse)(create_embeddings)
+app.post("/embeddings", response_model=EmbeddingResponse)(create_embeddings)
+app.post("/api/embeddings", response_model=EmbeddingResponse)(create_embeddings)
+app.post("/rerank", response_model=RerankResponse)(rerank)
+app.post("/v1/rerank", response_model=RerankResponse)(rerank)
+app.post("/api/v1/rerank", response_model=RerankResponse)(rerank)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -42,3 +60,4 @@ def search(req: SearchRequest) -> SearchResponse:
     except (StoreError, EmbedError) as e:
         raise HTTPException(status_code=503, detail=str(e))
     return SearchResponse(results=hits)
+
