@@ -7,6 +7,7 @@ overlap 由 DoclingParser 在 chunker 输出后做尾部拼接实现
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling_core.transforms.chunker.hierarchical_chunker import HierarchicalChunker
 from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
 from docling_core.transforms.chunker.tokenizer.huggingface import (
     HuggingFaceTokenizer,
@@ -40,17 +41,23 @@ class DoclingParser:
             max_tokens=max_tokens,
         )
         self._chunker = HybridChunker(tokenizer=hf_tokenizer)
+        self._structural_chunker = HierarchicalChunker()
         # 保留底层 transformers tokenizer 供 overlap 计算用。
         self._hf_tokenizer = hf_tokenizer.tokenizer
         self._overlap_tokens = overlap_tokens
 
-    def parse_and_chunk(self, path: str, source: str) -> list[Chunk]:
+    def parse_and_chunk(self, path: str, source: str, strategy: str = "hybrid") -> list[Chunk]:
         try:
             result = self._converter.convert(path)
             dl_doc = result.document
-            raw_chunks = [
-                c for c in self._chunker.chunk(dl_doc) if c.text and c.text.strip()
-            ]
+            if strategy == "structural":
+                raw_chunks = [
+                    c for c in self._structural_chunker.chunk(dl_doc) if c.text and c.text.strip()
+                ]
+            else:
+                raw_chunks = [
+                    c for c in self._chunker.chunk(dl_doc) if c.text and c.text.strip()
+                ]
         except Exception as e:
             raise ParseError(f"解析/分块失败 [{source}]: {e}") from e
 

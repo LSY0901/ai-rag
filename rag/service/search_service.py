@@ -10,8 +10,8 @@ class SearchService:
         self.reranker = reranker
         self.retriever = retriever
 
-    def ingest(self, path: str, filename: str) -> int:
-        chunks = self.parser.parse_and_chunk(path, source=filename)
+    def ingest(self, path: str, filename: str, strategy: str = "hybrid") -> int:
+        chunks = self.parser.parse_and_chunk(path, source=filename, strategy=strategy)
         if not chunks:
             return 0
         emb = self.embedder.encode([c.content for c in chunks])

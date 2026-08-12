@@ -1,7 +1,7 @@
 """FastAPI：/health, /ingest, /search。供 Spring AI 调用。"""
 import os
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from api.dependencies import get_search_service, get_store
 from api.embedding_app import create_embeddings
@@ -39,13 +39,16 @@ def health() -> HealthResponse:
 
 
 @app.post("/ingest", response_model=IngestResponse)
-async def ingest(file: UploadFile = File(...)) -> IngestResponse:
+async def ingest(
+    file: UploadFile = File(...),
+    strategy: str = Form("hybrid")
+) -> IngestResponse:
     os.makedirs("data/uploads", exist_ok=True)
     dest = os.path.join("data/uploads", file.filename)
     with open(dest, "wb") as f:
         f.write(await file.read())
     try:
-        n = get_search_service().ingest(path=dest, filename=file.filename)
+        n = get_search_service().ingest(path=dest, filename=file.filename, strategy=strategy)
     except ParseError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except (StoreError, EmbedError) as e:
