@@ -56,7 +56,9 @@ async def ingest(file: UploadFile = File(...)) -> IngestResponse:
 @app.post("/search", response_model=SearchResponse)
 def search(req: SearchRequest) -> SearchResponse:
     try:
-        hits = get_search_service().search(query=req.query, top_k=req.top_k)
+        hits = get_search_service().search(
+            query=req.query, top_k=req.top_k, score_threshold=req.score_threshold
+        )
     except (StoreError, EmbedError) as e:
         raise HTTPException(status_code=503, detail=str(e))
     return SearchResponse(results=hits)

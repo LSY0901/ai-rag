@@ -25,6 +25,7 @@ class SearchHit(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
+    score_threshold: float = 0.0
 
 
 class SearchResponse(BaseModel):

@@ -22,10 +22,13 @@ class SearchService:
         self.store.insert(chunks)
         return len(chunks)
 
-    def search(self, query: str, top_k: int) -> list[SearchHit]:
+    def search(self, query: str, top_k: int, score_threshold: float = 0.0) -> list[SearchHit]:
         if self.retriever is None:
             from rag.retrieval.retriever import HybridRetriever
 
             self.retriever = HybridRetriever(self.embedder, self.store)
         candidates = self.retriever.retrieve(query, top_k)
-        return self.reranker.rerank(query, candidates, top_k)
+        hits = self.reranker.rerank(query, candidates, top_k)
+        if score_threshold > 0.0:
+            hits = [h for h in hits if h.score >= score_threshold]
+        return hits
