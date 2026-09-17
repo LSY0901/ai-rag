@@ -30,6 +30,13 @@ class Reranker:
             scores = [float(scores)]
         scored = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
         return [
-            SearchHit(content=c.content, source=c.source, score=float(s))
+            SearchHit(
+                content=c.content,
+                source=c.source,
+                score=float(s),
+                page_no=c.page_no,
+                headings=c.headings,
+                chunk_index=c.chunk_index,
+            )
             for c, s in scored[:top_k]
         ]

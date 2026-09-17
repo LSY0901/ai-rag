@@ -11,12 +11,18 @@ class Chunk(BaseModel):
     source: str
     dense: Optional[list[float]] = None
     sparse: Optional[dict[str, float]] = None
+    page_no: Optional[int] = None
+    headings: list[str] = []
+    chunk_index: int = 0
 
 
 class SearchHit(BaseModel):
     content: str
     source: str
     score: float
+    page_no: Optional[int] = None
+    headings: list[str] = []
+    chunk_index: int = 0
 
 
 # --- API 请求/响应 ---

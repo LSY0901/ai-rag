@@ -35,7 +35,15 @@ def test_insert_maps_chunks_to_rows(mock_client_cls):
     args, kwargs = store.client.insert.call_args
     rows = kwargs["data"]
     assert len(rows) == 2
-    assert set(rows[0].keys()) == {"content", "source", "dense", "sparse"}
+    assert set(rows[0].keys()) == {
+        "content",
+        "source",
+        "dense",
+        "sparse",
+        "page_no",
+        "headings",
+        "chunk_index",
+    }
 
 
 @patch("rag.storage.milvus_store.MilvusClient")

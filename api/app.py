@@ -1,9 +1,10 @@
 """FastAPI：/health, /ingest, /search。供 Spring AI 调用。"""
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
-from api.dependencies import get_search_service, get_store
+from api.dependencies import get_search_service, get_store, warmup
 from api.embedding_app import create_embeddings
 from api.rerank_app import rerank
 from rag.exceptions import EmbedError, ParseError, StoreError
@@ -16,7 +17,13 @@ from rag.models import (
     SearchResponse,
 )
 
-app = FastAPI(title="RAG Retrieval Service")
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    warmup()  # ponytail: 启动时多几十秒，首查省十几秒；常驻服务只付一次
+    yield
+
+
+app = FastAPI(title="RAG Retrieval Service", lifespan=_lifespan)
 
 
 # 注册单独的 embedding 与 rerank 路由，使主应用 8000 端口同样支持直接调用

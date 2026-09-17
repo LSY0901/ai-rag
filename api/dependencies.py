@@ -4,6 +4,7 @@ from functools import lru_cache
 from rag.chunking.parser import DoclingParser
 from rag.config import settings
 from rag.embedding.bge_embedder import BGEM3Embedder
+from rag.models import SearchHit
 from rag.retrieval.reranker import Reranker
 from rag.retrieval.retriever import HybridRetriever
 from rag.service.search_service import SearchService
@@ -50,4 +51,13 @@ def get_search_service() -> SearchService:
         store=store,
         reranker=get_reranker(),
         retriever=HybridRetriever(embedder, store),
+    )
+
+
+def warmup() -> None:
+    """启动预热：提前加载 BGE-M3/reranker 权重，首查不再冷启动十几秒。"""
+    get_store()
+    get_embedder().encode(["warmup"])
+    get_reranker().rerank(
+        "warmup", [SearchHit(content="warmup", source="warmup", score=0.0)], 1
     )

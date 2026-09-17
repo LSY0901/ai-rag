@@ -70,7 +70,15 @@ class DoclingParser:
                 tail = self._tail_overlap(raw_chunks[i - 1].text)
                 if tail:
                     content = tail + "\n" + content
-            chunks.append(Chunk(content=content, source=source))
+            chunks.append(
+                Chunk(
+                    content=content,
+                    source=source,
+                    page_no=_page_no(c),
+                    headings=list(c.meta.headings or []),
+                    chunk_index=i,
+                )
+            )
         return chunks
 
     def _tail_overlap(self, prev_text: str) -> str:
@@ -78,3 +86,14 @@ class DoclingParser:
         ids = self._hf_tokenizer.encode(prev_text, add_special_tokens=False)
         tail_ids = ids[-self._overlap_tokens:]
         return self._hf_tokenizer.decode(tail_ids).strip()
+
+
+def _page_no(chunk) -> int | None:
+    """块内首个 doc_item 的起始页；跨页块取起始页，取不到返回 None。"""
+    try:
+        items = chunk.meta.doc_items or []
+        if items and items[0].prov:
+            return items[0].prov[0].page_no
+    except (AttributeError, IndexError):
+        pass
+    return None

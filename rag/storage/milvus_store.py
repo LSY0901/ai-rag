@@ -31,6 +31,9 @@ class MilvusStore:
         schema.add_field("source", DataType.VARCHAR, max_length=512)
         schema.add_field("dense", DataType.FLOAT_VECTOR, dim=self.dense_dim)
         schema.add_field("sparse", DataType.SPARSE_FLOAT_VECTOR)
+        schema.add_field("page_no", DataType.INT64)  # -1 表示未知
+        schema.add_field("headings", DataType.VARCHAR, max_length=2048)
+        schema.add_field("chunk_index", DataType.INT64)
 
         index_params = self.client.prepare_index_params()
         index_params.add_index(
@@ -56,6 +59,9 @@ class MilvusStore:
                 "source": c.source,
                 "dense": c.dense,
                 "sparse": c.sparse,
+                "page_no": c.page_no if c.page_no is not None else -1,
+                "headings": " / ".join(c.headings),
+                "chunk_index": c.chunk_index,
             }
             for c in chunks
         ]
@@ -88,16 +94,21 @@ class MilvusStore:
             reqs=[dense_req, sparse_req],
             ranker=RRFRanker(k=60),
             limit=limit,
-            output_fields=["content", "source"],
+            output_fields=["content", "source", "page_no", "headings", "chunk_index"],
         )
         hits: list[SearchHit] = []
         for r in results[0]:
             entity = r.get("entity", {})
+            page_no = entity.get("page_no", -1)
+            headings = entity.get("headings", "")
             hits.append(
                 SearchHit(
                     content=entity.get("content", ""),
                     source=entity.get("source", ""),
                     score=float(r.get("distance", 0.0)),
+                    page_no=None if page_no == -1 else int(page_no),
+                    headings=[h for h in headings.split(" / ") if h],
+                    chunk_index=int(entity.get("chunk_index", 0)),
                 )
             )
         return hits

@@ -3,7 +3,7 @@ from rag.models import SearchHit
 
 
 class HybridRetriever:
-    def __init__(self, embedder, store, fetch_k: int = 20):
+    def __init__(self, embedder, store, fetch_k: int = 8):
         self.embedder = embedder
         self.store = store
         self.fetch_k = fetch_k
