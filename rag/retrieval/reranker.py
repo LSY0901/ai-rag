@@ -37,6 +37,11 @@ class Reranker:
                 page_no=c.page_no,
                 headings=c.headings,
                 chunk_index=c.chunk_index,
+                block_type=c.block_type,
+                image_path=c.image_path,
+                ocr_text=c.ocr_text,
+                vlm_caption=c.vlm_caption,
+                vlm_status=c.vlm_status,
             )
             for c, s in scored[:top_k]
         ]

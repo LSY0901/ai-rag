@@ -1,12 +1,15 @@
-"""FastAPI：/health, /ingest, /search。供 Spring AI 调用。"""
+"""FastAPI：/health, /ingest, /search, /files。供 Spring AI 调用。"""
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
 from api.dependencies import get_search_service, get_store, warmup
 from api.embedding_app import create_embeddings
 from api.rerank_app import rerank
+from rag.chunking.parser import ALLOWED_EXTS
+from rag.config import settings
 from rag.exceptions import EmbedError, ParseError, StoreError
 from rag.models import (
     EmbeddingResponse,
@@ -50,8 +53,11 @@ async def ingest(
     file: UploadFile = File(...),
     strategy: str = Form("hybrid")
 ) -> IngestResponse:
-    os.makedirs("data/uploads", exist_ok=True)
-    dest = os.path.join("data/uploads", file.filename)
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTS:
+        raise HTTPException(status_code=422, detail=f"不支持的文件类型：{ext}，仅支持 pdf/docx/html")
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    dest = os.path.join(settings.upload_dir, file.filename)
     with open(dest, "wb") as f:
         f.write(await file.read())
     try:
@@ -71,5 +77,33 @@ def search(req: SearchRequest) -> SearchResponse:
         )
     except (StoreError, EmbedError) as e:
         raise HTTPException(status_code=503, detail=str(e))
+    base = (settings.public_base_url or "").rstrip("/")
+    if base:
+        for h in hits:
+            if h.image_path:
+                fname = h.image_path.replace("\\", "/").split("/")[-1]
+                h.image_path = f"{base}/files/images/{fname}"
     return SearchResponse(results=hits)
+
+
+@app.get("/files/{filename}")
+def download_file(filename: str):
+    """原文件下载（保真载荷之外的原字节通道）。"""
+    return _serve_file("", filename)
+
+
+@app.get("/files/images/{filename}")
+def download_image(filename: str):
+    """抽出的图片原图下载，供前端按 SearchHit.image_path 渲染。"""
+    return _serve_file("images", filename)
+
+
+def _serve_file(subdir: str, filename: str):
+    safe = os.path.basename(filename or "")
+    if not safe or safe != filename:
+        raise HTTPException(status_code=422, detail="非法文件名")
+    dest = os.path.join(settings.upload_dir, subdir, safe) if subdir else os.path.join(settings.upload_dir, safe)
+    if not os.path.isfile(dest):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(dest, filename=safe)
 

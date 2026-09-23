@@ -14,6 +14,11 @@ class Chunk(BaseModel):
     page_no: Optional[int] = None
     headings: list[str] = []
     chunk_index: int = 0
+    block_type: str = "text"  # text | table | image
+    image_path: Optional[str] = None  # 仅 image 块：data/uploads/images/ 下相对路径
+    ocr_text: str = ""  # image 块裁片 OCR；text/table 块为空
+    vlm_caption: str = ""  # image 块 VLM 描述；失败为空
+    vlm_status: str = "ok"  # ok | failed | skipped
 
 
 class SearchHit(BaseModel):
@@ -23,6 +28,11 @@ class SearchHit(BaseModel):
     page_no: Optional[int] = None
     headings: list[str] = []
     chunk_index: int = 0
+    block_type: str = "text"
+    image_path: Optional[str] = None
+    ocr_text: str = ""
+    vlm_caption: str = ""
+    vlm_status: str = "ok"
 
 
 # --- API 请求/响应 ---

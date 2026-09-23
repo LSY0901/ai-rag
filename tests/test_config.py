@@ -5,12 +5,15 @@ def test_default_values():
     s = Settings()
     assert s.milvus_host == "localhost"
     assert s.milvus_port == 19530
-    assert s.milvus_collection == "rag_docs"
+    assert s.milvus_collection == "rag_blocks_v3"
     assert s.dense_dim == 1024
     assert s.embedding_model_path.endswith("bge-m3")
     assert s.reranker_model_path.endswith("bge-reranker-v2-m3")
     assert s.chunk_max_tokens == 450
     assert s.upload_dir == "data/uploads"
+    assert s.ocr_enabled is True
+    assert s.vlm_enabled is True
+    assert s.vlm_endpoint == ""
 
 
 def test_env_override(monkeypatch):

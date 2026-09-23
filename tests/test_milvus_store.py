@@ -43,6 +43,11 @@ def test_insert_maps_chunks_to_rows(mock_client_cls):
         "page_no",
         "headings",
         "chunk_index",
+        "block_type",
+        "image_path",
+        "ocr_text",
+        "vlm_caption",
+        "vlm_status",
     }
 
 

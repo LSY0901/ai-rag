@@ -1,4 +1,5 @@
 """应用级单例，懒加载（首次 ingest/search 才加载 BGE-M3/reranker）。"""
+import os
 from functools import lru_cache
 
 from rag.chunking.parser import DoclingParser
@@ -33,6 +34,11 @@ def get_parser() -> DoclingParser:
         model_path=settings.embedding_model_path,
         max_tokens=settings.chunk_max_tokens,
         overlap_tokens=settings.chunk_overlap_tokens,
+        do_ocr=settings.ocr_enabled,
+        image_dir=os.path.join(settings.upload_dir, "images"),
+        vlm_enabled=settings.vlm_enabled,
+        vlm_endpoint=settings.vlm_endpoint,
+        vlm_model_id=settings.vlm_model_id,
     )
 
 
