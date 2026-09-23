@@ -29,3 +29,17 @@ def test_rerank_respects_top_k(mock_cls):
     ]
     out = r.rerank(query="q", candidates=candidates, top_k=2)
     assert len(out) == 2
+
+
+@patch("rag.retrieval.reranker.FlagReranker")
+def test_rerank_normalizes_scores_to_unit_interval(mock_cls):
+    r = Reranker(model_path="/fake/reranker")
+    r._model = MagicMock()
+    r._model.compute_score.return_value = [0.8, 0.2]
+    candidates = [
+        SearchHit(content="a", source="a.pdf", score=0.0),
+        SearchHit(content="b", source="b.pdf", score=0.0),
+    ]
+    r.rerank(query="q", candidates=candidates, top_k=2)
+    _, kwargs = r._model.compute_score.call_args
+    assert kwargs.get("normalize") is True

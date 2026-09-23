@@ -23,7 +23,9 @@ class Reranker:
         self._ensure_model()
         pairs = [[query, c.content] for c in candidates]
         try:
-            scores = self._model.compute_score(pairs)
+            # normalize=True 走 sigmoid，分数落在 (0,1)，与 score_threshold/测试的约定一致；
+            # 默认返回的是 raw logit（可为负、无界），阈值根本没法设。
+            scores = self._model.compute_score(pairs, normalize=True)
         except Exception as e:
             raise EmbedError(f"rerank failed: {e}") from e
         if isinstance(scores, (int, float)):

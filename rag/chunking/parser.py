@@ -9,7 +9,7 @@ overlap 由 DoclingParser 在 chunker 输出后做尾部拼接实现
 import os
 
 from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.transforms.chunker.hierarchical_chunker import HierarchicalChunker
 from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
@@ -36,11 +36,29 @@ class DoclingParser:
         vlm_endpoint: str = "",
         vlm_model_id: str = "HuggingFaceTB/SmolVLM-256M-Instruct",
     ):
+        # OcrAutoOptions 在 macOS 会因缺 ocrmac/onnxruntime/easyocr 静默跳过，
+        # 这里显式指定 rapidocr torch 后端（PP-OCRv4 中文，modelscope 自动下载约 40MB）。
+        # rapidocr_params 必须 pin v4：无 artifacts_path 时 rapidocr 自行解析模型，
+        # 默认 v6 在 torch 上直接 ValueError（与 describer.py 同一组权重）。
+        from rapidocr import LangRec, ModelType, OCRVersion
+
         pipeline_options = PdfPipelineOptions(
             do_ocr=do_ocr,
             do_table_structure=True,
             generate_picture_images=True,
             force_backend_text=not do_ocr,
+            ocr_options=RapidOcrOptions(
+                lang=["chinese"],
+                backend="torch",
+                rapidocr_params={
+                    "Det.ocr_version": OCRVersion.PPOCRV4,
+                    "Det.lang_type": LangRec.CH,
+                    "Det.model_type": ModelType.MOBILE,
+                    "Rec.ocr_version": OCRVersion.PPOCRV4,
+                    "Rec.lang_type": LangRec.CH,
+                    "Rec.model_type": ModelType.MOBILE,
+                },
+            ),
         )
         self._converter = DocumentConverter(
             format_options={

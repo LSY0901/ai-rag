@@ -5,11 +5,15 @@
 Docling 管线 OCR 只落页级文本，图片裁片文字与图片描述需要块级双通道。
 
 ## 决定
-1. VLM 默认本地 `SmolVLM-256M-Instruct`（`transformers` image-to-text，float32 CPU，
-   惰性加载）；`VLM_ENDPOINT` 非空则 POST `{"image": b64, "prompt"}` 走 API。
+1. VLM 默认本地 `SmolVLM-256M-Instruct`（`transformers` image-text-to-text
+   chat 格式，float32 CPU，惰性加载；image-to-text 传 prompt 在 idefics3
+   上 shape mismatch，故不用）；`VLM_ENDPOINT` 非空则 POST `{"image": b64, "prompt"}` 走 API。
    单图失败记 `vlm_status=failed`，内容回退纯 OCR。
-2. 图片裁片 OCR 用已装的 `rapidocr==3.9.2` torch 后端（onnxruntime 缺装，
-   torch 可用，PP-OCRv6 中文），与 Docling 页级 OCR 同引擎族，不新增依赖。
+2. 图片裁片 OCR 用已装的 `rapidocr==3.9.0` torch 后端（onnxruntime 缺装，
+   torch 可用；torch 只支持 PP-OCRv4/v5，pin 中文 mobile 走 PP-OCRv4，
+   默认 v6 会直接 ValueError），与 Docling 页级 OCR 同一组权重，不新增依赖。
+   页级 OCR 不用 `OcrAutoOptions`（macOS 下因缺 ocrmac/onnxruntime/easyocr
+   静默跳过），显式 `RapidOcrOptions(lang=["chinese"], backend="torch")`。
 3. `Chunk/SearchHit`/Milvus 加 `ocr_text/ vlm_caption/ vlm_status` 三列，
    `content = caption + OCR文字 + 图片描述` 拼串供 BGE-M3 向量化。
    集合升 `rag_blocks_v3`（v2 不动，切流后删）。

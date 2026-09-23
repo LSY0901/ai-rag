@@ -17,13 +17,21 @@ def ocr_image(path: str) -> str:
     global _ocr_engine
     try:
         if _ocr_engine is None:
-            from rapidocr import EngineType, RapidOCR
+            from rapidocr import EngineType, LangRec, ModelType, OCRVersion, RapidOCR
 
+            # torch 后端只支持 PP-OCRv4/v5，不显式 pin 默认 v6 直接 ValueError。
+            # 与 Docling 页级 OCR 同一组 v4 中文 mobile 权重，不新增依赖。
             _ocr_engine = RapidOCR(
                 params={
                     "Det.engine_type": EngineType.TORCH,
+                    "Det.ocr_version": OCRVersion.PPOCRV4,
+                    "Det.lang_type": LangRec.CH,
+                    "Det.model_type": ModelType.MOBILE,
                     "Cls.engine_type": EngineType.TORCH,
                     "Rec.engine_type": EngineType.TORCH,
+                    "Rec.ocr_version": OCRVersion.PPOCRV4,
+                    "Rec.lang_type": LangRec.CH,
+                    "Rec.model_type": ModelType.MOBILE,
                 }
             )
         out = _ocr_engine(path)
@@ -73,16 +81,44 @@ def _describe_local(path: str, model_id: str) -> str:
         import torch
         from transformers import pipeline
 
+        # image-to-text 传 prompt 在 idefics3 上 shape mismatch，
+        # 4.49 起 SmolVLM 走 image-text-to-text + chat 格式。
         _vlm_pipe = pipeline(
-            "image-to-text",
+            "image-text-to-text",
             model=model_id,
             torch_dtype=torch.float32,
             device=0 if torch.cuda.is_available() else -1,
         )
-    out = _vlm_pipe(path, prompt=VLM_PROMPT, generate_kwargs={"max_new_tokens": 256})
+    messages = [
+        {
+            "role": "user",
+            "content": [{"type": "image"}, {"type": "text", "text": VLM_PROMPT}],
+        }
+    ]
+    out = _vlm_pipe([path], messages, generate_kwargs={"max_new_tokens": 256})
     if isinstance(out, list) and out:
         first = out[0]
         if isinstance(first, dict):
-            text = first.get("generated_text") or first.get("text") or ""
-            return str(text).strip()
+            gen = first.get("generated_text")
+            if isinstance(gen, list):
+                # 全量 chat 返回，取最后一条 assistant
+                for m in reversed(gen):
+                    if isinstance(m, dict) and m.get("role") == "assistant":
+                        return _message_text(m.get("content")).strip()
+                return ""
+            if isinstance(gen, str):
+                return gen.strip()
+            return str(first.get("text") or "").strip()
     return str(out).strip()
+
+
+def _message_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return " ".join(
+            str(p.get("text", ""))
+            for p in content
+            if isinstance(p, dict) and p.get("text")
+        )
+    return str(content or "")
